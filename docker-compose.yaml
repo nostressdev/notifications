@@ -1,0 +1,50 @@
+version: "3.4"
+services:
+
+  fdb-coordinator:
+    image: foundationdb/foundationdb:6.0.18
+    environment:
+      FDB_COORDINATOR: fdb-coordinator
+      FDB_NETWORKING_MODE: container
+      FDB_COORDINATOR_PORT: 4500
+
+  fdb-server-1:
+    depends_on:
+      - fdb-coordinator
+    image: foundationdb/foundationdb:6.0.18
+    environment:
+      FDB_COORDINATOR: fdb-coordinator
+      FDB_NETWORKING_MODE: container
+      FDB_COORDINATOR_PORT: 4500
+
+  fdb-server-2:
+    depends_on:
+      - fdb-coordinator
+    image: foundationdb/foundationdb:6.0.18
+    environment:
+      FDB_COORDINATOR: fdb-coordinator
+      FDB_NETWORKING_MODE: container
+      FDB_COORDINATOR_PORT: 4500
+
+  notifications:
+    image: notifications:latest
+    depends_on:
+      - fdb-coordinator
+      - fdb-server-1
+      - fdb-server-2
+    environment:
+      - PORT=80
+      - HOST=0.0.0.0
+      - FDB_COORDINATOR=fdb-coordinator
+      - SECRET_KEY=IVKESJPMKEDKWZVH
+      - LOGGING=DEVELOPMENT
+      - FIREBASE_CREDS=firebase_creds.json
+      - APP_ID=abc
+      - APP_SECRET=abc
+      - SMTP_HOST=email-smtp.eu-west-2.amazonaws.com
+      - SMTP_PORT=587
+      - SMTP_LOGIN=AKIAQ7LTHRTV2D4DDUOL
+      - SMTP_PASSWORD=BLY9w3eEiAklebEl2aHuuqRC2o363wc1AIscdI8oTt65
+      - SMTP_SENDER=moscow.beverage@gmail.com
+    ports:
+      - 8008:80

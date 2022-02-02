@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package notifications;
+option go_package = "./proto";
+
+import "validate/validate.proto";
+
+enum DeviceType {
+    IOS = 0;
+    ANDROID = 1;
+    WEB = 2;
+    HUAWEI = 3;
+    EMAIL = 4;
+    // more platforms can be added, see https://documentation.onesignal.com/reference/add-a-device
+}
+
+message DeviceInfo {
+    DeviceType DeviceType = 1;
+    string Identifier = 2 [(validate.rules).string.min_len = 1]; // push token
+    string Language = 3;
+    // more info can be added
+}
+
+message Device {
+    string DeviceID = 1;
+    DeviceInfo DeviceInfo = 2;
+    string AccountID = 3;
+}
+
+message User {
+    string AccountID = 1 [(validate.rules).string.min_len = 1];
+    repeated Device Devices = 2;
+}
+
+message JSONObject {
+    map<string, string> Value = 1;
+}
+
+message Notification {
+    // for each language
+    map<string, string> Title = 1;
+    map<string, string> Body = 2;
+    string ImageURL = 3;
+    // for each platform
+    map<string, string> ClickAction = 4;
+    map<string, JSONObject> Data = 5;
+}

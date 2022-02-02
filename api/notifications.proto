@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package notifications;
+option go_package = "./proto";
+
+import "api/models.proto";
+import "validate/validate.proto";
+
+message CreateVirtualUserRequest {
+    string AccountID = 1;
+}
+
+message CreateVirtualUserResponse {
+    string AccountID = 1; 
+}
+
+message GetUserRequest {
+    string AccountID = 1 [(validate.rules).string.min_len = 1];
+}
+
+message GetUserResponse {
+    User User = 1;
+}
+
+message AddUserTagRequest {
+    string AccountID = 1 [(validate.rules).string.min_len = 1];
+    string Tag = 2 [(validate.rules).string.min_len = 1];
+}
+
+message AddUserTagResponse {
+}
+
+message DeleteUserTagRequest {
+    string AccountID = 1 [(validate.rules).string.min_len = 1];
+    string Tag = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteUserTagResponse {
+}
+
+message SendTagPushRequest {
+    string Tag = 1 [(validate.rules).string.min_len = 1];
+    Notification Notification = 2;
+}
+
+message SendTagPushResponse {
+}
+
+message SendUserPushRequest {
+    string AccountID = 1 [(validate.rules).string.min_len = 1];
+    Notification Notification = 2;
+}
+
+message SendUserPushResponse {
+}
+
+message SendDevicePushRequest {
+    string DeviceID = 1 [(validate.rules).string.min_len = 1];
+    Notification Notification = 2;
+}
+
+message SendDevicePushResponse {
+}
+
+message AddDeviceRequest {
+    DeviceInfo DeviceInfo = 1;
+}
+
+message AddDeviceResponse {
+    string DeviceID = 1;
+}
+
+message DeleteDeviceRequest {
+    string DeviceID = 1;
+}
+
+message DeleteDeviceResponse {
+}
+
+service Notifications {
+    // methods called from app server
+    rpc CreateVirtualUser(CreateVirtualUserRequest) returns (CreateVirtualUserResponse) {}
+    rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
+    rpc AddUserTag(AddUserTagRequest) returns (AddUserTagResponse) {}
+    rpc DeleteUserTag(DeleteUserTagRequest) returns (DeleteUserTagResponse) {}
+    rpc SendTagPush(SendTagPushRequest) returns (SendTagPushResponse) {}
+    rpc SendUserPush(SendUserPushRequest) returns (SendUserPushResponse) {}
+    rpc SendDevicePush(SendDevicePushRequest) returns (SendDevicePushResponse) {}
+    // methods called from device
+    rpc AddDevice(AddDeviceRequest) returns (AddDeviceResponse) {}
+    // DeleteDevice can be called from both of them
+    rpc DeleteDevice(DeleteDeviceRequest) returns (DeleteDeviceResponse) {}
+}
