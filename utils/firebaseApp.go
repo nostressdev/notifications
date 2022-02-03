@@ -55,7 +55,7 @@ func (app *FirebaseApp) SendMessage(request *pb.SendDevicePushRequest, device *p
 	if data.Value["on_click"] == "" {
 		data.Value["on_click"] = request.Notification.ClickAction["common"]
 	}
-	_, err = client.Send(context.Background(), &messaging.Message{
+	response, err := client.Send(context.Background(), &messaging.Message{
 		Notification: &messaging.Notification{
 			Title:    localize(request.Notification.Title, lang),
 			Body:     localize(request.Notification.Body, lang),
@@ -68,5 +68,5 @@ func (app *FirebaseApp) SendMessage(request *pb.SendDevicePushRequest, device *p
 	if err != nil {
 		return "", err
 	}
-	return "", nil
+	return response, nil
 }

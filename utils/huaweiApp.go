@@ -15,15 +15,19 @@ type HuaweiApp struct {
 
 func (app *HuaweiApp) SendMessage(request *pb.SendDevicePushRequest, device *pb.Device) (string, error) {
 	lang := device.DeviceInfo.Language
-	data, ok := request.Notification.Data["huawei"]
+	systemName := getSystemName(device.DeviceInfo.DeviceType)
+	data, ok := request.Notification.Data[systemName]
 	if !ok {
-		data = request.Notification.Data["common"]
+		data, ok = request.Notification.Data["common"]
+		if !ok {
+			data = &pb.JSONObject{Value: make(map[string]string)}
+		}
 	}
-	data.Value["on_click"] = request.Notification.ClickAction["huawei"]
+	data.Value["on_click"] = request.Notification.ClickAction[systemName]
 	if data.Value["on_click"] == "" {
 		data.Value["on_click"] = request.Notification.ClickAction["common"]
 	}
-	payload, err := json.Marshal(data.Value)
+	bytes, err := json.Marshal(data.Value)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +39,8 @@ func (app *HuaweiApp) SendMessage(request *pb.SendDevicePushRequest, device *pb.
 				Image: request.Notification.ImageURL,
 			},
 			Android: &model.AndroidConfig{},
-			Data:    string(payload),
+			Token:   []string{device.DeviceInfo.Identifier},
+			Data:    string(bytes),
 		},
 	}
 	response, err := app.App.SendMessage(context.Background(), msg)
