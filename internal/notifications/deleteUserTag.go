@@ -1,23 +1,24 @@
-package microservice
+package notifications
 
 import (
 	"context"
 	"fmt"
+
 	pb "github.com/nostressdev/notifications/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (s *service) DeleteDevice(ctx context.Context, request *pb.DeleteDeviceRequest) (*pb.DeleteDeviceResponse, error) {
+func (s *NotificationsService) DeleteUserTag(ctx context.Context, request *pb.DeleteUserTagRequest) (*pb.DeleteUserTagResponse, error) {
 	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to validate request %v", err.Error()))
 	}
-	err := s.Repository.DeleteDevice(request.DeviceID)
+	err := s.Storage.DeleteUserTag(request.AccountID, request.Tag)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	response := &pb.DeleteDeviceResponse{}
+	response := &pb.DeleteUserTagResponse{}
 	if err := response.Validate(); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to validate response %v", err.Error()))
 	}

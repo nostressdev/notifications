@@ -1,4 +1,4 @@
-package microservice
+package notifications
 
 import (
 	"context"
@@ -10,11 +10,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *service) AddUserTag(ctx context.Context, request *pb.AddUserTagRequest) (*pb.AddUserTagResponse, error) {
+func (s *NotificationsService) AddUserTag(ctx context.Context, request *pb.AddUserTagRequest) (*pb.AddUserTagResponse, error) {
 	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to validate request %v", err.Error()))
 	}
-	err := s.Repository.AddUserTag(request.AccountID, request.Tag)
+	err := s.Storage.AddUserTag(request.AccountID, request.Tag)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

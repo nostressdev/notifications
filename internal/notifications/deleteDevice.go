@@ -1,4 +1,4 @@
-package microservice
+package notifications
 
 import (
 	"context"
@@ -10,15 +10,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *service) DeleteUserTag(ctx context.Context, request *pb.DeleteUserTagRequest) (*pb.DeleteUserTagResponse, error) {
+func (s *NotificationsService) DeleteDevice(ctx context.Context, request *pb.DeleteDeviceRequest) (*pb.DeleteDeviceResponse, error) {
 	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to validate request %v", err.Error()))
 	}
-	err := s.Repository.DeleteUserTag(request.AccountID, request.Tag)
+	err := s.Storage.DeleteDevice(request.DeviceID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	response := &pb.DeleteUserTagResponse{}
+	response := &pb.DeleteDeviceResponse{}
 	if err := response.Validate(); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to validate response %v", err.Error()))
 	}

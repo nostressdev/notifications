@@ -3,6 +3,7 @@ module github.com/nostressdev/notifications
 go 1.16
 
 require (
+	firebase.google.com/go v3.13.0+incompatible
 	firebase.google.com/go/v4 v4.6.1
 	github.com/apple/foundationdb/bindings/go v0.0.0-20190311170436-f2d582ffa197
 	github.com/envoyproxy/protoc-gen-validate v0.1.0

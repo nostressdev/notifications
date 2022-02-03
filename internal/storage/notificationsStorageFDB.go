@@ -1,4 +1,4 @@
-package notifications
+package storage
 
 import (
 	"encoding/json"
@@ -14,38 +14,53 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type ConfigFDB struct {
+type ConfigNotificationsFDB struct {
 	DB       fdb.Database
 	Subspace subspace.Subspace
 }
 
-type implFDB struct {
-	*ConfigFDB
+type NotificationsStorageFDB struct {
+	*ConfigNotificationsFDB
 	UsersSubspace    subspace.Subspace
 	DevicesSubspace  subspace.Subspace
 	UserTagsSubspace subspace.Subspace
 	TagUsersSubspace subspace.Subspace
 }
 
-func (repo *implFDB) CreateVirtualUser(accountID string) (string, error) {
+
+func NewNotificationsFDB(config *ConfigNotificationsFDB) NotificationsStorage {
+	if config == nil {
+		log.Fatalln("fdb config must not be nil")
+	}
+	return &NotificationsStorageFDB{
+		ConfigNotificationsFDB: config,
+		UsersSubspace: config.Subspace.Sub("users"),
+		DevicesSubspace: config.Subspace.Sub("devices"),
+		UserTagsSubspace: config.Subspace.Sub("user_tags"),
+		TagUsersSubspace: config.Subspace.Sub("tag_users"),
+	}
+}
+
+
+func (s *NotificationsStorageFDB) CreateVirtualUser(accountID string) (string, error) {
 	user := &pb.User{
 		AccountID: accountID,
 	}
-	_, err := repo.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
+	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
 		userBytes, err := proto.Marshal(user)
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(repo.UsersSubspace.Sub(user.AccountID), userBytes)
+		tr.Set(s.UsersSubspace.Sub(user.AccountID), userBytes)
 		return nil, nil
 	})
 	return user.AccountID, err
 }
 
-func (repo *implFDB) GetUser(AccountID string) (*pb.User, error) {
+func (s *NotificationsStorageFDB) GetUser(AccountID string) (*pb.User, error) {
 	user := new(pb.User)
-	_, err := repo.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
-		userBytes, err := tr.Get(repo.UsersSubspace.Sub(AccountID)).Get()
+	_, err := s.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
+		userBytes, err := tr.Get(s.UsersSubspace.Sub(AccountID)).Get()
 		if err != nil {
 			return nil, err
 		}
@@ -58,16 +73,16 @@ func (repo *implFDB) GetUser(AccountID string) (*pb.User, error) {
 	return user, err
 }
 
-func (repo *implFDB) AddUserTag(userID, tag string) error {
-	_, err := repo.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
-		user, err := repo.GetUser(userID)
+func (s *NotificationsStorageFDB) AddUserTag(userID, tag string) error {
+	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
+		user, err := s.GetUser(userID)
 		if err != nil {
 			return nil, err
 		} else if user.AccountID != userID {
 			return nil, errors.New(fmt.Sprintf("no such user %s", userID))
 		}
 
-		userTagsBytes, err := tr.Get(repo.UserTagsSubspace.Sub(userID)).Get()
+		userTagsBytes, err := tr.Get(s.UserTagsSubspace.Sub(userID)).Get()
 		userTags := []string{}
 		if len(userTagsBytes) > 0 {
 			if err := json.Unmarshal(userTagsBytes, &userTags); err != nil {
@@ -84,9 +99,9 @@ func (repo *implFDB) AddUserTag(userID, tag string) error {
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(repo.UserTagsSubspace.Sub(userID), userTagsBytes)
+		tr.Set(s.UserTagsSubspace.Sub(userID), userTagsBytes)
 
-		tagUsersBytes, err := tr.Get(repo.TagUsersSubspace.Sub(tag)).Get()
+		tagUsersBytes, err := tr.Get(s.TagUsersSubspace.Sub(tag)).Get()
 		tagUsers := []string{}
 		if len(tagUsersBytes) > 0 {
 			if err = json.Unmarshal(tagUsersBytes, &tagUsers); err != nil {
@@ -103,7 +118,7 @@ func (repo *implFDB) AddUserTag(userID, tag string) error {
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(repo.TagUsersSubspace.Sub(tag), tagUsersBytes)
+		tr.Set(s.TagUsersSubspace.Sub(tag), tagUsersBytes)
 		log.Println(userTags)
 		log.Println(tagUsers)
 		return nil, nil
@@ -111,16 +126,16 @@ func (repo *implFDB) AddUserTag(userID, tag string) error {
 	return err
 }
 
-func (repo *implFDB) DeleteUserTag(userID, tag string) error {
-	_, err := repo.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
-		user, err := repo.GetUser(userID)
+func (s *NotificationsStorageFDB) DeleteUserTag(userID, tag string) error {
+	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
+		user, err := s.GetUser(userID)
 		if err != nil {
 			return nil, err
 		} else if user.AccountID != userID {
 			return nil, errors.New(fmt.Sprintf("no such user %s", userID))
 		}
 
-		userTagsBytes, err := tr.Get(repo.UserTagsSubspace.Sub(userID)).Get()
+		userTagsBytes, err := tr.Get(s.UserTagsSubspace.Sub(userID)).Get()
 		if err != nil {
 			return nil, err
 		}
@@ -143,9 +158,9 @@ func (repo *implFDB) DeleteUserTag(userID, tag string) error {
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(repo.UserTagsSubspace.Sub(userID), userTagsBytes)
+		tr.Set(s.UserTagsSubspace.Sub(userID), userTagsBytes)
 
-		tagUsersBytes, err := tr.Get(repo.TagUsersSubspace.Sub(tag)).Get()
+		tagUsersBytes, err := tr.Get(s.TagUsersSubspace.Sub(tag)).Get()
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +180,7 @@ func (repo *implFDB) DeleteUserTag(userID, tag string) error {
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(repo.TagUsersSubspace.Sub(tag), tagUsersBytes)
+		tr.Set(s.TagUsersSubspace.Sub(tag), tagUsersBytes)
 		log.Println(newUserTags)
 		log.Println(newTagUsers)
 		return nil, nil
@@ -173,10 +188,10 @@ func (repo *implFDB) DeleteUserTag(userID, tag string) error {
 	return err
 }
 
-func (repo *implFDB) GetUsersByTag(tag string) ([]*pb.User, error) {
+func (s *NotificationsStorageFDB) GetUsersByTag(tag string) ([]*pb.User, error) {
 	userIDs := []string{}
-	_, err := repo.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
-		tagUsersBytes, err := tr.Get(repo.TagUsersSubspace.Sub(tag)).Get()
+	_, err := s.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
+		tagUsersBytes, err := tr.Get(s.TagUsersSubspace.Sub(tag)).Get()
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +204,7 @@ func (repo *implFDB) GetUsersByTag(tag string) ([]*pb.User, error) {
 	})
 	users := []*pb.User{}
 	for _, userID := range userIDs {
-		user, err := repo.GetUser(userID)
+		user, err := s.GetUser(userID)
 		if err != nil {
 			return nil, err
 		}
@@ -198,19 +213,19 @@ func (repo *implFDB) GetUsersByTag(tag string) ([]*pb.User, error) {
 	return users, err
 }
 
-func (repo *implFDB) AddDevice(info *pb.DeviceInfo, userID string) (string, error) {
+func (s *NotificationsStorageFDB) AddDevice(info *pb.DeviceInfo, userID string) (string, error) {
 	device := &pb.Device{
 		AccountID:  userID,
 		DeviceID:   uuid.New().String(),
 		DeviceInfo: info,
 	}
-	_, err := repo.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
+	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
 		deviceBytes, err := proto.Marshal(device)
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(repo.DevicesSubspace.Sub(device.DeviceID), deviceBytes)
-		user, err := repo.GetUser(userID)
+		tr.Set(s.DevicesSubspace.Sub(device.DeviceID), deviceBytes)
+		user, err := s.GetUser(userID)
 		if err != nil {
 			return nil, err
 		}
@@ -219,17 +234,17 @@ func (repo *implFDB) AddDevice(info *pb.DeviceInfo, userID string) (string, erro
 		if err != nil {
 			return nil, err
 		}
-		tr.Clear(repo.UsersSubspace.Sub(user.AccountID))
-		tr.Set(repo.UsersSubspace.Sub(user.AccountID), userBytes)
+		tr.Clear(s.UsersSubspace.Sub(user.AccountID))
+		tr.Set(s.UsersSubspace.Sub(user.AccountID), userBytes)
 		return nil, nil
 	})
 	return device.DeviceID, err
 }
 
-func (repo *implFDB) GetDevice(deviceID string) (*pb.Device, error) {
+func (s *NotificationsStorageFDB) GetDevice(deviceID string) (*pb.Device, error) {
 	device := new(pb.Device)
-	_, err := repo.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
-		deviceBytes, err := tr.Get(repo.DevicesSubspace.Sub(deviceID)).Get()
+	_, err := s.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
+		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(deviceID)).Get()
 		if err != nil {
 			return nil, err
 		}
@@ -242,16 +257,16 @@ func (repo *implFDB) GetDevice(deviceID string) (*pb.Device, error) {
 	return device, err
 }
 
-func (repo *implFDB) DeleteDevice(deviceID string) error {
-	_, err := repo.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
-		device, err := repo.GetDevice(deviceID)
+func (s *NotificationsStorageFDB) DeleteDevice(deviceID string) error {
+	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
+		device, err := s.GetDevice(deviceID)
 		if err != nil {
 			return nil, err
 		}
 		if device == nil || device.AccountID == "" {
 			return nil, nil
 		}
-		user, err := repo.GetUser(device.AccountID)
+		user, err := s.GetUser(device.AccountID)
 		if err != nil {
 			return nil, err
 		}
@@ -266,9 +281,9 @@ func (repo *implFDB) DeleteDevice(deviceID string) error {
 		if err != nil {
 			return nil, err
 		}
-		tr.Clear(repo.UsersSubspace.Sub(user.AccountID))
-		tr.Set(repo.UsersSubspace.Sub(user.AccountID), userBytes)
-		tr.Clear(repo.DevicesSubspace.Sub(deviceID))
+		tr.Clear(s.UsersSubspace.Sub(user.AccountID))
+		tr.Set(s.UsersSubspace.Sub(user.AccountID), userBytes)
+		tr.Clear(s.DevicesSubspace.Sub(deviceID))
 		return nil, nil
 	})
 	return err

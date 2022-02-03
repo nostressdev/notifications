@@ -1,19 +1,20 @@
-package microservice
+package notifications
 
 import (
 	"context"
 	"fmt"
+
 	pb "github.com/nostressdev/notifications/proto"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (s *service) SendDevicePush(ctx context.Context, request *pb.SendDevicePushRequest) (*pb.SendDevicePushResponse, error) {
+func (s *NotificationsService) SendDevicePush(ctx context.Context, request *pb.SendDevicePushRequest) (*pb.SendDevicePushResponse, error) {
 	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to validate request %v", err.Error()))
 	}
-	device, err := s.Repository.GetDevice(request.DeviceID)
+	device, err := s.Storage.GetDevice(request.DeviceID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -21,7 +22,7 @@ func (s *service) SendDevicePush(ctx context.Context, request *pb.SendDevicePush
 		_, err = s.HuaweiApp.SendMessage(request, device)
 	} else if device.DeviceInfo.DeviceType == pb.DeviceType_EMAIL {
 		_, err = s.EmailApp.SendMessage(request, device)
-	}  else {
+	} else {
 		_, err = s.FirebaseApp.SendMessage(request, device)
 	}
 	if err != nil {

@@ -46,20 +46,27 @@ func (app *FirebaseApp) SendMessage(request *pb.SendDevicePushRequest, device *p
 	systemName := getSystemName(device.DeviceInfo.DeviceType)
 	data, ok := request.Notification.Data[systemName]
 	if !ok {
-		data = request.Notification.Data["common"]
+		data, ok = request.Notification.Data["common"]
+		if !ok {
+			data = &pb.JSONObject{Value: make(map[string]string)}
+		}
 	}
 	data.Value["on_click"] = request.Notification.ClickAction[systemName]
 	if data.Value["on_click"] == "" {
 		data.Value["on_click"] = request.Notification.ClickAction["common"]
 	}
-	client.Send(context.Background(), &messaging.Message{
+	_, err = client.Send(context.Background(), &messaging.Message{
 		Notification: &messaging.Notification{
 			Title:    localize(request.Notification.Title, lang),
 			Body:     localize(request.Notification.Body, lang),
 			ImageURL: request.Notification.ImageURL,
 		},
 		Android: &messaging.AndroidConfig{},
+		Token:   device.DeviceInfo.Identifier,
 		Data:    data.Value,
 	})
+	if err != nil {
+		return "", err
+	}
 	return "", nil
 }

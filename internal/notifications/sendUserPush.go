@@ -1,8 +1,9 @@
-package microservice
+package notifications
 
 import (
 	"context"
 	"fmt"
+	"log"
 
 	pb "github.com/nostressdev/notifications/proto"
 
@@ -10,11 +11,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *service) SendUserPush(ctx context.Context, request *pb.SendUserPushRequest) (*pb.SendUserPushResponse, error) {
+func (s *NotificationsService) SendUserPush(ctx context.Context, request *pb.SendUserPushRequest) (*pb.SendUserPushResponse, error) {
 	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to validate request %v", err.Error()))
 	}
-	user, err := s.Repository.GetUser(request.AccountID)
+	user, err := s.Storage.GetUser(request.AccountID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -28,6 +29,7 @@ func (s *service) SendUserPush(ctx context.Context, request *pb.SendUserPushRequ
 		} else if device.DeviceInfo.DeviceType == pb.DeviceType_EMAIL {
 			_, err = s.EmailApp.SendMessage(request, device)
 		} else {
+			log.Println("trying to send firebase push")
 			_, err = s.FirebaseApp.SendMessage(request, device)
 		}
 		if err != nil {

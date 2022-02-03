@@ -1,4 +1,4 @@
-package microservice
+package notifications
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *service) CreateVirtualUser(ctx context.Context, request *pb.CreateVirtualUserRequest) (*pb.CreateVirtualUserResponse, error) {
+func (s *NotificationsService) CreateVirtualUser(ctx context.Context, request *pb.CreateVirtualUserRequest) (*pb.CreateVirtualUserResponse, error) {
 	if err := request.Validate(); err != nil {
 		return nil, nerrors.BadRequest.Wrap(err, "validate request")
 	}
@@ -29,7 +29,7 @@ func (s *service) CreateVirtualUser(ctx context.Context, request *pb.CreateVirtu
 				return nil, nerrors.BadRequest.New("wrong metadata")
 			}
 		}
-		userID, err := s.Repository.CreateVirtualUser(accountID)
+		userID, err := s.Storage.CreateVirtualUser(accountID)
 		if err != nil {
 			return nil, err
 		}

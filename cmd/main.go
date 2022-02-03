@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nostressdev/notifications/microservice"
-	"github.com/nostressdev/notifications/internal"
+	"github.com/nostressdev/notifications/internal/notifications"
+	"github.com/nostressdev/notifications/internal/storage"
 	"github.com/nostressdev/signer"
 
 	"github.com/nostressdev/notifications/pushkit/push/config"
@@ -137,7 +137,7 @@ func (s *ServerResource) Init(ctx context.Context) error {
 
 	db := fdb.MustOpenDefault()
 
-	repo := notifications.NewFDB(&notifications.ConfigFDB{
+	repo := storage.NewNotificationsFDB(&storage.ConfigNotificationsFDB{
 		DB:       db,
 		Subspace: subspace.Sub("notifications_subspace"),
 	})
@@ -149,8 +149,8 @@ func (s *ServerResource) Init(ctx context.Context) error {
 		SecretKey:  []byte(secretKey),
 	})
 
-	creds := option.WithCredentialsJSON([]byte(firebsaseCreds))
-	app, err := firebase.NewApp(context.Background(), nil, creds)
+	opts := option.WithCredentialsJSON([]byte(firebsaseCreds))
+	app, err := firebase.NewApp(context.Background(), nil, opts)
 
 	if err != nil {
 		return fmt.Errorf("Could not initialize firebase app: %s", err.Error())
@@ -176,9 +176,9 @@ func (s *ServerResource) Init(ctx context.Context) error {
 	}
 
 	s.Server = grpc.NewServer()
-	pb.RegisterNotificationsServer(s.Server, microservice.New(&microservice.Config{
+	pb.RegisterNotificationsServer(s.Server, notifications.New(&notifications.Config{
 		Signer:      signer,
-		Repository:  repo,
+		Storage:     repo,
 		FirebaseApp: firebaseApp,
 		HuaweiApp:   huaweiApp,
 		EmailApp: &utils.EmailApp{
