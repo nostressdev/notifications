@@ -520,22 +520,22 @@ var _ interface {
 	ErrorName() string
 } = JSONObjectValidationError{}
 
-// Validate checks the field values on Notification with the rules defined in
-// the proto definition for this message. If any rules are violated, the first
-// error encountered is returned, or nil if there are no violations.
-func (m *Notification) Validate() error {
+// Validate checks the field values on PushNotification with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *PushNotification) Validate() error {
 	return m.validate(false)
 }
 
-// ValidateAll checks the field values on Notification with the rules defined
-// in the proto definition for this message. If any rules are violated, the
-// result is a list of violation errors wrapped in NotificationMultiError, or
-// nil if none found.
-func (m *Notification) ValidateAll() error {
+// ValidateAll checks the field values on PushNotification with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PushNotificationMultiError, or nil if none found.
+func (m *PushNotification) ValidateAll() error {
 	return m.validate(true)
 }
 
-func (m *Notification) validate(all bool) error {
+func (m *PushNotification) validate(all bool) error {
 	if m == nil {
 		return nil
 	}
@@ -568,7 +568,7 @@ func (m *Notification) validate(all bool) error {
 				switch v := interface{}(val).(type) {
 				case interface{ ValidateAll() error }:
 					if err := v.ValidateAll(); err != nil {
-						errors = append(errors, NotificationValidationError{
+						errors = append(errors, PushNotificationValidationError{
 							field:  fmt.Sprintf("Data[%v]", key),
 							reason: "embedded message failed validation",
 							cause:  err,
@@ -576,7 +576,7 @@ func (m *Notification) validate(all bool) error {
 					}
 				case interface{ Validate() error }:
 					if err := v.Validate(); err != nil {
-						errors = append(errors, NotificationValidationError{
+						errors = append(errors, PushNotificationValidationError{
 							field:  fmt.Sprintf("Data[%v]", key),
 							reason: "embedded message failed validation",
 							cause:  err,
@@ -585,7 +585,7 @@ func (m *Notification) validate(all bool) error {
 				}
 			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
 				if err := v.Validate(); err != nil {
-					return NotificationValidationError{
+					return PushNotificationValidationError{
 						field:  fmt.Sprintf("Data[%v]", key),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -597,17 +597,18 @@ func (m *Notification) validate(all bool) error {
 	}
 
 	if len(errors) > 0 {
-		return NotificationMultiError(errors)
+		return PushNotificationMultiError(errors)
 	}
 	return nil
 }
 
-// NotificationMultiError is an error wrapping multiple validation errors
-// returned by Notification.ValidateAll() if the designated constraints aren't met.
-type NotificationMultiError []error
+// PushNotificationMultiError is an error wrapping multiple validation errors
+// returned by PushNotification.ValidateAll() if the designated constraints
+// aren't met.
+type PushNotificationMultiError []error
 
 // Error returns a concatenation of all the error messages it wraps.
-func (m NotificationMultiError) Error() string {
+func (m PushNotificationMultiError) Error() string {
 	var msgs []string
 	for _, err := range m {
 		msgs = append(msgs, err.Error())
@@ -616,11 +617,11 @@ func (m NotificationMultiError) Error() string {
 }
 
 // AllErrors returns a list of validation violation errors.
-func (m NotificationMultiError) AllErrors() []error { return m }
+func (m PushNotificationMultiError) AllErrors() []error { return m }
 
-// NotificationValidationError is the validation error returned by
-// Notification.Validate if the designated constraints aren't met.
-type NotificationValidationError struct {
+// PushNotificationValidationError is the validation error returned by
+// PushNotification.Validate if the designated constraints aren't met.
+type PushNotificationValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -628,22 +629,22 @@ type NotificationValidationError struct {
 }
 
 // Field function returns field value.
-func (e NotificationValidationError) Field() string { return e.field }
+func (e PushNotificationValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e NotificationValidationError) Reason() string { return e.reason }
+func (e PushNotificationValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e NotificationValidationError) Cause() error { return e.cause }
+func (e PushNotificationValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e NotificationValidationError) Key() bool { return e.key }
+func (e PushNotificationValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e NotificationValidationError) ErrorName() string { return "NotificationValidationError" }
+func (e PushNotificationValidationError) ErrorName() string { return "PushNotificationValidationError" }
 
 // Error satisfies the builtin error interface
-func (e NotificationValidationError) Error() string {
+func (e PushNotificationValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -655,14 +656,14 @@ func (e NotificationValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sNotification.%s: %s%s",
+		"invalid %sPushNotification.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = NotificationValidationError{}
+var _ error = PushNotificationValidationError{}
 
 var _ interface {
 	Field() string
@@ -670,4 +671,4 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = NotificationValidationError{}
+} = PushNotificationValidationError{}

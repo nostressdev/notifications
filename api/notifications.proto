@@ -40,7 +40,7 @@ message DeleteUserTagResponse {
 
 message SendTagPushRequest {
     string Tag = 1 [(validate.rules).string.min_len = 1];
-    Notification Notification = 2;
+    PushNotification Notification = 2;
 }
 
 message SendTagPushResponse {
@@ -48,7 +48,7 @@ message SendTagPushResponse {
 
 message SendUserPushRequest {
     string AccountID = 1 [(validate.rules).string.min_len = 1];
-    Notification Notification = 2;
+    PushNotification Notification = 2;
 }
 
 message SendUserPushResponse {
@@ -56,7 +56,7 @@ message SendUserPushResponse {
 
 message SendDevicePushRequest {
     string DeviceID = 1 [(validate.rules).string.min_len = 1];
-    Notification Notification = 2;
+    PushNotification Notification = 2;
 }
 
 message SendDevicePushResponse {
