@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  gen_dart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16'
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 2.14.4
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+      - name: Install protoc-gen-validate
+        run: GO111MODULE=off go get -u github.com/envoyproxy/protoc-gen-validate
+      - name: Install Dart gRPC Codegen
+        run: dart pub global activate protoc_plugin
+      - name: Create project
+        run: dart create notifications-backend-dart-codegen
+      - name: Clean up
+        run: rm -rf notifications-backend-dart-codegen/bin
+      - name: Create source directory
+        run: mkdir notifications-backend-dart-codegen/lib
+      - name: Run code generation
+        run: |
+          export GOPATH=$(go env GOPATH)
+          protoc -I ${GOPATH}/src/github.com/envoyproxy/protoc-gen-validate -I . --dart_out=grpc:notifications-backend-dart-codegen/lib api/*.proto
+      - name: Add dependencies
+        run: |
+          cd notifications-backend-dart-codegen
+          dart pub add grpc
+          cd ../
+      - name: Get dependencies
+        run: |
+          cd notifications-backend-dart-codegen
+          dart pub get
+          cd ../
+      - name: Analyze code
+        run: |
+          cd notifications-backend-dart-codegen
+          dart analyze
+          cd ../
+      - name: Push to repo
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+        with:
+          source-directory: 'notifications-backend-dart-codegen'
+          destination-github-username: 'nostressdev'
+          destination-repository-name: 'notifications-backend-dart-codegen'
+          user-email: 41898282+github-actions[bot]@users.noreply.github.com
+          target-branch: master
