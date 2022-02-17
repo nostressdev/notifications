@@ -11,6 +11,7 @@ require (
 	github.com/nostressdev/nerrors v0.0.0-20211102020529-6c56e5518896
 	github.com/nostressdev/runner v0.0.0-20211128204527-4824e299b835
 	github.com/nostressdev/signer v0.0.0-20211219043820-e71a4285ccce
+	go.uber.org/zap v1.21.0
 	google.golang.org/api v0.60.0
 	google.golang.org/grpc v1.42.0
 	google.golang.org/protobuf v1.27.1

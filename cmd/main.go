@@ -13,6 +13,7 @@ import (
 	"github.com/nostressdev/notifications/internal/notifications"
 	"github.com/nostressdev/notifications/internal/storage"
 	"github.com/nostressdev/signer"
+	"go.uber.org/zap"
 
 	"github.com/nostressdev/notifications/pushkit/push/config"
 	pushkit "github.com/nostressdev/notifications/pushkit/push/core"
@@ -38,6 +39,7 @@ var (
 	host      string
 	port      string
 	secretKey string
+	logging   string
 
 	// for firebase cloud messaging
 	// service account's credentials: json string / path of json file
@@ -64,6 +66,9 @@ func loadEnvironmentVariables() {
 	}
 	if secretKey = os.Getenv("SECRET_KEY"); secretKey == "" {
 		log.Fatalln("$SECRET_KEY environment variable should be specified")
+	}
+	if logging = os.Getenv("LOGGING"); logging == "" {
+		log.Fatalln("$LOGGING environment variable should be specified")
 	}
 
 	if firebsaseCreds = os.Getenv("FIREBASE_CREDS"); firebsaseCreds == "" {
@@ -102,18 +107,6 @@ func createNetworkListener() net.Listener {
 	return listener
 }
 
-func createServiceConnection(serviceName string) *grpc.ClientConn {
-	connURL := os.Getenv(serviceName + "_URL")
-	if connURL == "" {
-		log.Fatalln("$" + serviceName + "_URL environment variable should be specified")
-	}
-	conn, err := grpc.Dial(connURL, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalln("failed to connect to " + serviceName)
-	}
-	return conn
-}
-
 func createConfigSMTP() *utils.SMTP {
 	port, err := strconv.Atoi(strings.TrimSpace(smtpPort))
 	if err != nil {
@@ -144,6 +137,19 @@ func (s *ServerResource) Init(ctx context.Context) error {
 
 	loadEnvironmentVariables()
 
+	var err error
+	var logger *zap.Logger
+	if logging == "DEVELOPMENT" {
+		logger, err = zap.NewDevelopment()
+	} else if logging == "PRODUCTION" {
+		logger, err = zap.NewProduction()
+	} else {
+		log.Fatalln(fmt.Sprintf("unknown logging mode: %s", logging))
+	}
+	if err != nil {
+		log.Fatalln("failed to create zap logger")
+	}
+
 	signer := signer.NewSignerJWT(signer.TokenProviderConfig{
 		Expiration: time.Hour,
 		SecretKey:  []byte(secretKey),
@@ -153,7 +159,7 @@ func (s *ServerResource) Init(ctx context.Context) error {
 	app, err := firebase.NewApp(context.Background(), nil, opts)
 
 	if err != nil {
-		return fmt.Errorf("Could not initialize firebase app: %s", err.Error())
+		return fmt.Errorf("could not initialize firebase app: %s", err.Error())
 	}
 
 	firebaseApp := &utils.FirebaseApp{
@@ -168,14 +174,14 @@ func (s *ServerResource) Init(ctx context.Context) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Could not initialize huawei pushkit app: %s", err.Error())
+		return fmt.Errorf("could not initialize huawei pushkit app: %s", err.Error())
 	}
 
 	huaweiApp := &utils.HuaweiApp{
 		App: pushkitApp,
 	}
 
-	s.Server = grpc.NewServer()
+	s.Server = grpc.NewServer(utils.GetServerInterceptor(logger, signer))
 	pb.RegisterNotificationsServer(s.Server, notifications.New(&notifications.Config{
 		Signer:      signer,
 		Storage:     repo,

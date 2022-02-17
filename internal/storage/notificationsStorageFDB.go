@@ -2,10 +2,10 @@ package storage
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 
+	"github.com/nostressdev/nerrors"
 	pb "github.com/nostressdev/notifications/proto"
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
@@ -23,10 +23,10 @@ type NotificationsStorageFDB struct {
 	*ConfigNotificationsFDB
 	UsersSubspace    subspace.Subspace
 	DevicesSubspace  subspace.Subspace
+	IdentifierDevice subspace.Subspace
 	UserTagsSubspace subspace.Subspace
 	TagUsersSubspace subspace.Subspace
 }
-
 
 func NewNotificationsFDB(config *ConfigNotificationsFDB) NotificationsStorage {
 	if config == nil {
@@ -34,13 +34,13 @@ func NewNotificationsFDB(config *ConfigNotificationsFDB) NotificationsStorage {
 	}
 	return &NotificationsStorageFDB{
 		ConfigNotificationsFDB: config,
-		UsersSubspace: config.Subspace.Sub("users"),
-		DevicesSubspace: config.Subspace.Sub("devices"),
-		UserTagsSubspace: config.Subspace.Sub("user_tags"),
-		TagUsersSubspace: config.Subspace.Sub("tag_users"),
+		UsersSubspace:          config.Subspace.Sub("users"),
+		DevicesSubspace:        config.Subspace.Sub("devices"),
+		UserTagsSubspace:       config.Subspace.Sub("user_tags"),
+		TagUsersSubspace:       config.Subspace.Sub("tag_users"),
+		IdentifierDevice:       config.Subspace.Sub("id_device"),
 	}
 }
-
 
 func (s *NotificationsStorageFDB) CreateVirtualUser(accountID string) (string, error) {
 	user := &pb.User{
@@ -57,16 +57,31 @@ func (s *NotificationsStorageFDB) CreateVirtualUser(accountID string) (string, e
 	return user.AccountID, err
 }
 
-func (s *NotificationsStorageFDB) GetUser(AccountID string) (*pb.User, error) {
+func (s *NotificationsStorageFDB) GetUser(userID string) (*pb.User, error) {
 	user := new(pb.User)
 	_, err := s.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
-		userBytes, err := tr.Get(s.UsersSubspace.Sub(AccountID)).Get()
+		userBytes, err := tr.Get(s.UsersSubspace.Sub(userID)).Get()
 		if err != nil {
 			return nil, err
 		}
 		err = proto.Unmarshal(userBytes, user)
 		if err != nil {
 			return nil, err
+		}
+		user.Devices = []*pb.Device{}
+		begin, end := s.DevicesSubspace.Sub(userID).FDBRangeKeys()
+		iter := tr.GetRange(fdb.KeyRange{Begin: begin, End: end}, fdb.RangeOptions{}).Iterator()
+		for iter.Advance() {
+			kv, err := iter.Get()
+			if err != nil {
+				return nil, err
+			}
+			device := &pb.Device{}
+			err = proto.Unmarshal(kv.Value, device)
+			if err != nil {
+				return nil, err
+			}
+			user.Devices = append(user.Devices, device)
 		}
 		return nil, nil
 	})
@@ -79,10 +94,13 @@ func (s *NotificationsStorageFDB) AddUserTag(userID, tag string) error {
 		if err != nil {
 			return nil, err
 		} else if user.AccountID != userID {
-			return nil, errors.New(fmt.Sprintf("no such user %s", userID))
+			return nil, fmt.Errorf("no such user %s", userID)
 		}
 
 		userTagsBytes, err := tr.Get(s.UserTagsSubspace.Sub(userID)).Get()
+		if err != nil {
+			return nil, err
+		}
 		userTags := []string{}
 		if len(userTagsBytes) > 0 {
 			if err := json.Unmarshal(userTagsBytes, &userTags); err != nil {
@@ -102,6 +120,9 @@ func (s *NotificationsStorageFDB) AddUserTag(userID, tag string) error {
 		tr.Set(s.UserTagsSubspace.Sub(userID), userTagsBytes)
 
 		tagUsersBytes, err := tr.Get(s.TagUsersSubspace.Sub(tag)).Get()
+		if err != nil {
+			return nil, err
+		}
 		tagUsers := []string{}
 		if len(tagUsersBytes) > 0 {
 			if err = json.Unmarshal(tagUsersBytes, &tagUsers); err != nil {
@@ -132,7 +153,7 @@ func (s *NotificationsStorageFDB) DeleteUserTag(userID, tag string) error {
 		if err != nil {
 			return nil, err
 		} else if user.AccountID != userID {
-			return nil, errors.New(fmt.Sprintf("no such user %s", userID))
+			return nil, fmt.Errorf("no such user %s", userID)
 		}
 
 		userTagsBytes, err := tr.Get(s.UserTagsSubspace.Sub(userID)).Get()
@@ -220,33 +241,59 @@ func (s *NotificationsStorageFDB) AddDevice(info *pb.DeviceInfo, userID string) 
 		DeviceInfo: info,
 	}
 	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
-		deviceBytes, err := proto.Marshal(device)
+		bytes, err := tr.Get(s.UsersSubspace.Sub(userID)).Get()
 		if err != nil {
 			return nil, err
 		}
-		tr.Set(s.DevicesSubspace.Sub(device.DeviceID), deviceBytes)
-		user, err := s.GetUser(userID)
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("no such user")
+		}
+		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(userID, device.DeviceInfo.Identifier)).Get()
 		if err != nil {
 			return nil, err
 		}
-		user.Devices = append(user.Devices, device)
-		userBytes, err := proto.Marshal(user)
+		if deviceBytes != nil {
+			err = proto.Unmarshal(deviceBytes, device)
+			if err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
+		deviceBytes, err = proto.Marshal(device)
 		if err != nil {
 			return nil, err
 		}
-		tr.Clear(s.UsersSubspace.Sub(user.AccountID))
-		tr.Set(s.UsersSubspace.Sub(user.AccountID), userBytes)
+		tr.Set(s.DevicesSubspace.Sub(userID, device.DeviceInfo.Identifier), deviceBytes)
+		tr.Set(s.IdentifierDevice.Sub(device.DeviceID), []byte(device.DeviceInfo.Identifier))
 		return nil, nil
 	})
 	return device.DeviceID, err
 }
 
-func (s *NotificationsStorageFDB) GetDevice(deviceID string) (*pb.Device, error) {
+func (s *NotificationsStorageFDB) GetDevice(userID, deviceID string) (*pb.Device, error) {
 	device := new(pb.Device)
 	_, err := s.DB.ReadTransact(func(tr fdb.ReadTransaction) (interface{}, error) {
-		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(deviceID)).Get()
+		bytes, err := tr.Get(s.UsersSubspace.Sub(userID)).Get()
 		if err != nil {
 			return nil, err
+		}
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("no such user")
+		}
+
+		bytes, err = tr.Get(s.IdentifierDevice.Sub(deviceID)).Get()
+		if err != nil {
+			return nil, err
+		}
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("no such device")
+		}
+		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(userID, string(bytes))).Get()
+		if err != nil {
+			return nil, err
+		}
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("no such device")
 		}
 		err = proto.Unmarshal(deviceBytes, device)
 		if err != nil {
@@ -257,33 +304,33 @@ func (s *NotificationsStorageFDB) GetDevice(deviceID string) (*pb.Device, error)
 	return device, err
 }
 
-func (s *NotificationsStorageFDB) DeleteDevice(deviceID string) error {
+func (s *NotificationsStorageFDB) DeleteDevice(userID, deviceID string) error {
 	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
-		device, err := s.GetDevice(deviceID)
+		bytes, err := tr.Get(s.UsersSubspace.Sub(userID)).Get()
 		if err != nil {
 			return nil, err
 		}
-		if device == nil || device.AccountID == "" {
-			return nil, nil
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("no such user")
 		}
-		user, err := s.GetUser(device.AccountID)
+
+		idBytes, err := tr.Get(s.IdentifierDevice.Sub(deviceID)).Get()
 		if err != nil {
 			return nil, err
 		}
-		newDevices := make([]*pb.Device, 0)
-		for _, d := range user.Devices {
-			if d.DeviceID != deviceID {
-				newDevices = append(newDevices, d)
-			}
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("no such device")
 		}
-		user.Devices = newDevices
-		userBytes, err := proto.Marshal(user)
+
+		bytes, err = tr.Get(s.DevicesSubspace.Sub(userID, string(idBytes))).Get()
 		if err != nil {
 			return nil, err
 		}
-		tr.Clear(s.UsersSubspace.Sub(user.AccountID))
-		tr.Set(s.UsersSubspace.Sub(user.AccountID), userBytes)
-		tr.Clear(s.DevicesSubspace.Sub(deviceID))
+		if bytes == nil {
+			return nil, nerrors.BadRequest.New("device does not belong to user")
+		}
+		tr.Clear(s.DevicesSubspace.Sub(userID, string(idBytes)))
+		tr.Clear(s.IdentifierDevice.Sub(deviceID))
 		return nil, nil
 	})
 	return err
