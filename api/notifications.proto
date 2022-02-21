@@ -64,6 +64,7 @@ message SendDevicePushResponse {
 
 message AddDeviceRequest {
     DeviceInfo DeviceInfo = 1;
+    string DeviceID = 2;
 }
 
 message AddDeviceResponse {

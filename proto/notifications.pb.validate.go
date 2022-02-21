@@ -1704,6 +1704,8 @@ func (m *AddDeviceRequest) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for DeviceID
+
 	if len(errors) > 0 {
 		return AddDeviceRequestMultiError(errors)
 	}
