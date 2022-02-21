@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"log"
 
 	pb "github.com/nostressdev/notifications/proto"
 
@@ -14,7 +15,7 @@ type FirebaseApp struct {
 }
 
 func localize(dict map[string]string, lang string) string {
-	if lang == "" {
+	if lang == "" || dict[lang] == "" {
 		return dict["en"]
 	}
 	return dict[lang]
@@ -55,6 +56,13 @@ func (app *FirebaseApp) SendMessage(request *pb.SendDevicePushRequest, device *p
 	if data.Value["on_click"] == "" {
 		data.Value["on_click"] = request.Notification.ClickAction["common"]
 	}
+	log.Println(device.DeviceInfo.Identifier)
+	log.Println(&messaging.Notification{
+		Title:    localize(request.Notification.Title, lang),
+		Body:     localize(request.Notification.Body, lang),
+		ImageURL: request.Notification.ImageURL,
+	})
+	
 	response, err := client.Send(context.Background(), &messaging.Message{
 		Notification: &messaging.Notification{
 			Title:    localize(request.Notification.Title, lang),
