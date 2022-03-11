@@ -19,7 +19,7 @@ func (s *NotificationsService) CreateVirtualUser(ctx context.Context, request *p
 		return nil, err
 	} else {
 		accountID := request.AccountID
-		if request.AccountID != "" {
+		if request.AccountID == "" {
 			rawAccountID, ok := payload["account_id"]
 			if !ok {
 				return nil, nerrors.BadRequest.New("wrong metadata")

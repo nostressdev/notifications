@@ -3,7 +3,6 @@ package notifications
 import (
 	"context"
 	"fmt"
-	"log"
 
 	pb "github.com/nostressdev/notifications/proto"
 
@@ -29,10 +28,14 @@ func (s *NotificationsService) SendUserPush(ctx context.Context, request *pb.Sen
 		} else if device.DeviceInfo.DeviceType == pb.DeviceType_EMAIL {
 			_, err = s.EmailApp.SendMessage(request, device)
 		} else {
-			log.Println("trying to send firebase push")
 			_, err = s.FirebaseApp.SendMessage(request, device)
 		}
-		if err != nil {
+		if err != nil && err.Error() == "Requested entity was not found." {
+			err := s.Storage.DeleteDevice(user.AccountID, device.DeviceID)
+			if err != nil {
+				return &pb.SendUserPushResponse{}, err
+			}
+		} else if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send message: %v", err.Error()))
 		}
 	}

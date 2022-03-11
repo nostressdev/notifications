@@ -37,7 +37,12 @@ func (s *NotificationsService) SendDevicePush(ctx context.Context, request *pb.S
 		} else {
 			_, err = s.FirebaseApp.SendMessage(request, device)
 		}
-		if err != nil {
+		if err.Error() == "Requested entity was not found." {
+			err := s.Storage.DeleteDevice(accountID, device.DeviceID)
+			if err != nil {
+				return &pb.SendDevicePushResponse{}, err
+			}
+		} else if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to send message: %v", err.Error()))
 		}
 

@@ -78,6 +78,13 @@ message DeleteDeviceRequest {
 message DeleteDeviceResponse {
 }
 
+message PingRequest {
+}
+
+message PingResponse {
+}
+
+
 service Notifications {
     // methods called from app server
     rpc CreateVirtualUser(CreateVirtualUserRequest) returns (CreateVirtualUserResponse) {}
@@ -91,4 +98,6 @@ service Notifications {
     rpc AddDevice(AddDeviceRequest) returns (AddDeviceResponse) {}
     // DeleteDevice can be called from both of them
     rpc DeleteDevice(DeleteDeviceRequest) returns (DeleteDeviceResponse) {}
+
+    rpc Ping(PingRequest) returns (PingResponse) {}
 }

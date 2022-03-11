@@ -23,7 +23,6 @@ type NotificationsStorageFDB struct {
 	*ConfigNotificationsFDB
 	UsersSubspace    subspace.Subspace
 	DevicesSubspace  subspace.Subspace
-	IdentifierDevice subspace.Subspace
 	UserTagsSubspace subspace.Subspace
 	TagUsersSubspace subspace.Subspace
 }
@@ -38,7 +37,6 @@ func NewNotificationsFDB(config *ConfigNotificationsFDB) NotificationsStorage {
 		DevicesSubspace:        config.Subspace.Sub("devices"),
 		UserTagsSubspace:       config.Subspace.Sub("user_tags"),
 		TagUsersSubspace:       config.Subspace.Sub("tag_users"),
-		IdentifierDevice:       config.Subspace.Sub("id_device"),
 	}
 }
 
@@ -234,10 +232,13 @@ func (s *NotificationsStorageFDB) GetUsersByTag(tag string) ([]*pb.User, error) 
 	return users, err
 }
 
-func (s *NotificationsStorageFDB) AddDevice(info *pb.DeviceInfo, userID string) (string, error) {
+func (s *NotificationsStorageFDB) AddDevice(info *pb.DeviceInfo, userID, deviceID string) (string, error) {
+	if deviceID == "" {
+		deviceID = uuid.New().String()
+	}
 	device := &pb.Device{
 		AccountID:  userID,
-		DeviceID:   uuid.New().String(),
+		DeviceID:   deviceID,
 		DeviceInfo: info,
 	}
 	_, err := s.DB.Transact(func(tr fdb.Transaction) (interface{}, error) {
@@ -248,23 +249,11 @@ func (s *NotificationsStorageFDB) AddDevice(info *pb.DeviceInfo, userID string) 
 		if bytes == nil {
 			return nil, nerrors.BadRequest.New("no such user")
 		}
-		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(userID, device.DeviceInfo.Identifier)).Get()
+		deviceBytes, err := proto.Marshal(device)
 		if err != nil {
 			return nil, err
 		}
-		if deviceBytes != nil {
-			err = proto.Unmarshal(deviceBytes, device)
-			if err != nil {
-				return nil, err
-			}
-			return nil, nil
-		}
-		deviceBytes, err = proto.Marshal(device)
-		if err != nil {
-			return nil, err
-		}
-		tr.Set(s.DevicesSubspace.Sub(userID, device.DeviceInfo.Identifier), deviceBytes)
-		tr.Set(s.IdentifierDevice.Sub(device.DeviceID), []byte(device.DeviceInfo.Identifier))
+		tr.Set(s.DevicesSubspace.Sub(userID, deviceID), deviceBytes)
 		return nil, nil
 	})
 	return device.DeviceID, err
@@ -281,14 +270,7 @@ func (s *NotificationsStorageFDB) GetDevice(userID, deviceID string) (*pb.Device
 			return nil, nerrors.BadRequest.New("no such user")
 		}
 
-		bytes, err = tr.Get(s.IdentifierDevice.Sub(deviceID)).Get()
-		if err != nil {
-			return nil, err
-		}
-		if bytes == nil {
-			return nil, nerrors.BadRequest.New("no such device")
-		}
-		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(userID, string(bytes))).Get()
+		deviceBytes, err := tr.Get(s.DevicesSubspace.Sub(userID, deviceID)).Get()
 		if err != nil {
 			return nil, err
 		}
@@ -314,23 +296,14 @@ func (s *NotificationsStorageFDB) DeleteDevice(userID, deviceID string) error {
 			return nil, nerrors.BadRequest.New("no such user")
 		}
 
-		idBytes, err := tr.Get(s.IdentifierDevice.Sub(deviceID)).Get()
-		if err != nil {
-			return nil, err
-		}
-		if bytes == nil {
-			return nil, nerrors.BadRequest.New("no such device")
-		}
-
-		bytes, err = tr.Get(s.DevicesSubspace.Sub(userID, string(idBytes))).Get()
+		bytes, err = tr.Get(s.DevicesSubspace.Sub(userID, deviceID)).Get()
 		if err != nil {
 			return nil, err
 		}
 		if bytes == nil {
 			return nil, nerrors.BadRequest.New("device does not belong to user")
 		}
-		tr.Clear(s.DevicesSubspace.Sub(userID, string(idBytes)))
-		tr.Clear(s.IdentifierDevice.Sub(deviceID))
+		tr.Clear(s.DevicesSubspace.Sub(userID, deviceID))
 		return nil, nil
 	})
 	return err

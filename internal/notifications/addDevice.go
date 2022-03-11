@@ -26,7 +26,7 @@ func (s *NotificationsService) AddDevice(ctx context.Context, request *pb.AddDev
 		if !ok {
 			return nil, nerrors.BadRequest.New("wrong metadata")
 		}
-		device_id, err := s.Storage.AddDevice(request.DeviceInfo, accountID)
+		device_id, err := s.Storage.AddDevice(request.DeviceInfo, accountID, request.DeviceID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
