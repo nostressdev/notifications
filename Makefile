@@ -15,3 +15,8 @@ bin/notifications: proto $(GO)
 docker.build:
 	docker build -f docker/notifications/Dockerfile . -t notifications:latest
 	docker-compose up
+
+docker.push:
+	docker build -f docker/notifications/Dockerfile . -t notifications:latest
+	docker tag notifications:latest cr.yandex/crpbivccj2pdgffg9qug/syntok-notifications:latest
+	docker push cr.yandex/crpbivccj2pdgffg9qug/syntok-notifications:latest

@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syntok-notifications
+spec:
+  selector:
+    matchLabels:
+      app: syntok-notifications
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: syntok-notifications
+    spec:
+      containers:
+        - name: syntok-notifications
+          image: cr.yandex/crpbivccj2pdgffg9qug/syntok-notifications:latest
+          command: [ "bash" ]
+          args: [ "-c", "./docker-entrypoint.sh" ]
+          ports:
+            - containerPort: 80
+              name: grpc
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          env:
+            - name: PORT
+              value: "80"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sign
+                  key: secretKey
+            - name: LOGGING
+              value: "DEVELOPMENT"
+            - name: APP_ID
+              value: "abc"
+            - name: APP_SECRET
+              value: "abc"
+            - name: SMTP_HOST
+              value: "email-smtp.eu-west-2.amazonaws.com"
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_LOGIN
+              value: "AKIAQ7LTHRTV2D4DDUOL"
+            - name: SMTP_PASSWORD
+              value: "BLY9w3eEiAklebEl2aHuuqRC2o363wc1AIscdI8oTt65"
+            - name: SMTP_SENDER
+              value: "moscow.beverage@gmail.com"
+            - name: FIREBASE_CREDS
+              value: "{\"type\": \"service_account\",\"project_id\": \"test1-3e745\",\"private_key_id\": \"d121fbe354556d87419b63be5896ca6c8fda24dd\",\"private_key\": \"-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDL2snHnUysWcmL\nQfHDzYVDBdZSYl2jtk600iI8SYmo3A1HB4UCldYWbbReMrRldN9MrNtmMTuQy/Uw\n12A3S5rCKuY4yqDKBEBeBBRhT1nhrhc0PEyHUQfT6F8jAzQgdaRm57zPDa0bF1t8\nw2FK2lPOK9Y8xsu1pXQrwBOqFoexaHgt2cRud0lfbdUMglo4xQEVXYgUaGWkWQz0\nNZllFKFlKn8UeYVE5AtbwJKeeBvU2KwWho6R91P6BaCsKSJ2mmLkMH79Jz5RbR1w\nhwMi0dyRXjvFqDPDfTWAiX2/CO43owOpv5PMkdfpVDRGF3Q650aOgHdtazzrt9iq\nQUJHFhIpAgMBAAECggEAEH+/e5K5YSyuMYFvmB2i9sL67vWLpyOq+JsWTsNT6zEO\nOQy8gPJQHsYXxlT7wUdliE7oPfvnmodLa73OyYLqvmLa+cc6nscbz5AsdxjFSUz+\nD0n/FqeiBs5kntCUUDk9Sl/gqfBtLYdlLfKhRf3oMQRexVIArE29Gopj/QzwRBUv\njKC/tW9SoorCCzygVV1eynrSD0fwXH6FHjH7oi83ykYazCJLMODabrClnOz8YYzh\noEkWHZX/8BIW9MAMDphHTzxyQwnaBuPXkdK0MdxA8hQU+hpYDAjb26gJ3gkhyxVO\ng0kIraOx8x1P8XOiXmDP6SeadrZyTIMywVnxlffS5QKBgQD+mJE0B4WN9wlzZigv\np3TT/QKsUdR0XxyuwUOrvoAqNTpt3GKazF/+TjXPItz9Eu5iHbiTETIpzC6pe7dL\nqNfBpvXjE6DTa6E6yQCRp7GKiMcjiknAFsaO/F1095jipuBJkV8SqF8VcLbP5b1W\nFd/2Y1umvNSSvdIG01yx44IFnQKBgQDM+pXm0hAZKmEMET84T53+NvXgvQQAsZq9\nv+3SeG95GypguJ8+ZGNQRPTX8WMxQ8EvMJlCek81WT0yohFxUtRudzFXtHp1C53w\n1fcc4nK6JTV9467ylqx/CUlv/5Rxobhn8mQ/IhSv+K47sJkPxg/gxEIRrEkOl8Ne\n+HyJJ1y+/QKBgQC0mlHW0Mci7+1aWUuEkovDnaV5zAqkCpx0M1Dn0hlk16F9MWsZ\nWIV4Bs8RAzA0rmtAWskGOpqVH+yx+bsLBtkW3HNtBA2ALMeQxemLaaP+HAz33y91\n/jIYWFmLkeB4V9yfE2qX96yLrwtf6x8mpBnd1Jm9bBJ3jgQhJ2qIHlWr2QKBgD/6\nCmVztRCVuJqSm3/Q4cghkVamyCQLSvfkeq8RZgGPqAduOE25+YFpNF5d+g67TgWT\njpJAKI7HHqG6EeWj66fazezI6Nu1V4N+1NUQHKzaxjpXoRgYTRiNZn1tcQCScEMJ\nVZ6a3Yga/w6kTPGuaPBHcTOg6WCDn7f5qK0KOxllAoGAZCORTf3KpGBYEr5qYBEe\nv0LMkTwhdK0v9pTbluAE3enaaoBsV+bfntA2twSBiVTDEOYVDkplVvlYaH42NP2u\nAI7lGPFOK2zsuLI6vT3HZHfaKHaRRKjVb59xYEB9k6MHWI652Y7UHdl9BQ/k6uTd\n7LhaXk5BQd1D1Wg9ajXOC5k=\n-----END PRIVATE KEY-----\n\",\"client_email\": \"push-653@test1-3e745.iam.gserviceaccount.com\",\"client_id\": \"115880399313894436182\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"https://www.googleapis.com/robot/v1/metadata/x509/push-653%40test1-3e745.iam.gserviceaccount.com\"}"
+            - name: FDB_CLUSTER_FILE
+              value: /mnt/fdb-volume/cluster-file
+          #            - name: FDB_COORDINATOR
+          #              valueFrom:
+          #                secretKeyRef:
+          #                  name: fdb
+          #                  key: coordinators
+          volumeMounts:
+            - name: fdb-volume
+              mountPath: /mnt/fdb-volume
+      volumes:
+        - name: fdb-volume
+          configMap:
+            name: fdbdev-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syntok-notifications-svc
+  labels:
+    app: syntok-notifications
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: syntok-notifications
