@@ -18,5 +18,5 @@ docker.build:
 
 docker.push:
 	docker build -f docker/notifications/Dockerfile . -t notifications:latest
-	docker tag notifications:latest cr.yandex/crpbivccj2pdgffg9qug/syntok-notifications:latest
-	docker push cr.yandex/crpbivccj2pdgffg9qug/syntok-notifications:latest
+	docker tag notifications:latest cr.yandex/crp3j6j9afnid0jm6v82/syntok-notifications:latest
+	docker push cr.yandex/crp3j6j9afnid0jm6v82/syntok-notifications:latest
